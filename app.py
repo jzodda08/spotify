@@ -34,14 +34,15 @@ def remove_duplicates():
                                                    redirect_uri=redirect_uri,
                                                    scope=scope))
 
-    # Find duplicate tracks (implement your logic here)
+    # Find duplicate tracks
     duplicates = find_duplicate_tracks(playlist_id)
 
-    # Remove duplicates (implement your logic here)
-    for track in duplicates:
-        sp.playlist_remove_all_occurrences_of_items(playlist_id, [track['uri']])
-
-    return jsonify({'message': 'Duplicates removed successfully!'})
+    if duplicates:
+        # Remove duplicates
+        remove_duplicate_tracks(playlist_id, duplicates)
+        return jsonify({'message': f'Removed {len(duplicates)} duplicate tracks.'})
+    else:
+        return jsonify({'message': 'No duplicate tracks found.'})
 
 def find_duplicate_tracks(playlist_id):
     results = sp.playlist_tracks(playlist_id)
@@ -50,23 +51,34 @@ def find_duplicate_tracks(playlist_id):
     unique_tracks = {}
     duplicates = []
 
-    for track in tracks:
+    for idx, track in enumerate(tracks):
         track_name = track['track']['name']
         track_artist = track['track']['artists'][0]['name']
         track_uri = track['track']['uri']
 
         track_key = (track_name.lower(), track_artist.lower())
-
+        
         if track_key in unique_tracks:
+            # Mark as duplicate
             duplicates.append({
                 'name': track_name,
                 'artist': track_artist,
-                'uri': track_uri
+                'uri': track_uri,
+                'index': idx
             })
         else:
             unique_tracks[track_key] = track_uri
 
     return duplicates
+
+def remove_duplicate_tracks(playlist_id, duplicates):
+    tracks_to_remove = [{
+        'uri': track['uri'],
+        'positions': [track['index']]
+    } for track in duplicates]
+
+    # Remove duplicate tracks
+    sp.playlist_remove_specific_occurrences_of_items(playlist_id, tracks_to_remove)
 
 if __name__ == '__main__':
     app.run(debug=True)
